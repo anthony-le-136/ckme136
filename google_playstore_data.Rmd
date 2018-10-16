@@ -1,0 +1,36 @@
+---
+title: "Google Play Store Data Analysis"
+author: "Anthony Le"
+date: "September 28, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Cleaning Data
+
+Import Data 
+```{r}
+playstore <- read.csv('googleplaystore.csv', header = TRUE, stringsAsFactors = FALSE)
+
+```
+Summary of initial data
+
+```{r,echo=FALSE}
+summary(playstore)
+```
+Remove NA values
+
+```{r}
+playstore <- na.omit(playstore)
+summary(playstore)
+```
+App ratings should have a maximum value of 5
+
+```{r}
+playstore = subset(playstore[playstore$Rating <= 5,])
+summary(playstore)
+str(playstore)
+```
