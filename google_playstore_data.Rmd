@@ -9,28 +9,92 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r,echo=FALSE}
+#install.packages("tidyverse")
+#install.packages("ggplot2")
+#library(ggplot2)
+library(tidyverse)
+library(lubridate)
+```
+
 ## Cleaning Data
 
 Import Data 
 ```{r}
-playstore <- read.csv('googleplaystore.csv', header = TRUE, stringsAsFactors = FALSE)
-
+playstore <- read.csv('googleplaystore.csv', header = TRUE)
 ```
-Summary of initial data
 
+
+Initial Data
 ```{r,echo=FALSE}
+str(playstore)
 summary(playstore)
+
 ```
-Remove NA values
+
+Remove nonessential columns and duplicated rows
 
 ```{r}
+playstore$App <- NULL
+playstore$Current.Ver <- NULL
+playstore$Genres <- NULL
+playstore$Last.Updated <- NULL
 playstore <- na.omit(playstore)
-summary(playstore)
+playstore <- subset(unique(playstore))
+
 ```
 App ratings should have a maximum value of 5
 
-```{r}
-playstore = subset(playstore[playstore$Rating <= 5,])
+```{r, echo=FALSE}
+playstore <- subset(playstore[playstore$Rating <= 5,])
 summary(playstore)
+#str(playstore)
+#boxplot(playstore$Rating, main = "Distribution of Rating", xlab = "App Rating", col="red")
+```
+
+
+Remove extra characters, convert Size to consistent format, remove apps with 0 installs
+
+```{r,echo=FALSE}
+playstore$Installs <- gsub("+", "", playstore$Installs, fixed = TRUE)
+playstore$Installs <- gsub(",", "", playstore$Installs, fixed = TRUE)
+playstore$Price <- gsub("$", "", playstore$Price, fixed = TRUE)
+playstore <- subset(playstore[playstore$Size != "Varies with device",])
+playstore$Size <- gsub("M", "", playstore$Size)
+playstore$Size <- as.numeric(playstore$Size)
+playstore[,4][is.na(playstore$Size)] <- 0
+
+```
+
+
+
+Convert columns to appropriate variable types
+
+```{r, echo=FALSE}
+
+# Android.Ver should have numeric values only
+playstore$Android.Ver <- gsub("and up","",playstore$Android.Ver,fixed=TRUE)
+playstore$Android.Ver <- gsub("Varies with device",NA,playstore$Android.Ver)
+playstore <- na.omit(playstore)
+playstore$Android.Ver <- as.numeric(substr(playstore$Android.Ver,start=1,stop=3))
+
+# Convert Reviews, Rating, Price, Installs to numeric
+playstore$Reviews <- as.numeric(playstore$Reviews)
+playstore$Rating <- as.numeric(playstore$Rating)
+playstore$Price <- as.numeric(playstore$Price)
+playstore$Installs <- as.numeric(playstore$Installs)
+
+# Remove NaN values in Type
+playstore$Type[is.nan(playstore$Type)] <- NA
+playstore <- na.omit(playstore)
+
 str(playstore)
+
+```
+
+##Exploratory Plots
+
+```{r,echo=FALSE}
+hist(playstore$Rating, main = "Distribution of App Rating", breaks = 100, xlim = c(0,5), xlab = "Rating", ylab = "Count", col="blue")
+
 ```
