@@ -76,16 +76,19 @@ Convert columns to appropriate variable types
 playstore$Android.Ver <- gsub("and up","",playstore$Android.Ver,fixed=TRUE)
 playstore$Android.Ver <- gsub("Varies with device",NA,playstore$Android.Ver)
 playstore <- na.omit(playstore)
-playstore$Android.Ver <- as.factor(substr(playstore$Android.Ver,start=1,stop=3))
+playstore$Android.Ver <- substr(playstore$Android.Ver,start=1,stop=3)
 
-# Convert Reviews, Rating, Price, Installs to numeric
+# Change data type of  Reviews, Rating, Price, Installs
 playstore$Reviews <- as.numeric(playstore$Reviews)
 playstore$Rating <- as.numeric(playstore$Rating)
 playstore$Price <- as.numeric(playstore$Price)
 playstore$Installs <- as.numeric(playstore$Installs)
 
 # Remove NaN values in Type
-playstore$Type[is.nan(playstore$Type)] <- NA
+playstore$Type <- gsub(NaN,NA,playstore$Type,fixed=TRUE)
+playstore$Android.Ver <- gsub(NaN,NA,playstore$Android.Ver,fixed=TRUE)
+playstore$Android.Ver <- as.factor(playstore$Android.Ver)
+
 playstore <- na.omit(playstore)
 
 str(playstore)
