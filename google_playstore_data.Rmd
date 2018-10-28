@@ -76,7 +76,7 @@ Convert columns to appropriate variable types
 playstore$Android.Ver <- gsub("and up","",playstore$Android.Ver,fixed=TRUE)
 playstore$Android.Ver <- gsub("Varies with device",NA,playstore$Android.Ver)
 playstore <- na.omit(playstore)
-playstore$Android.Ver <- as.numeric(substr(playstore$Android.Ver,start=1,stop=3))
+playstore$Android.Ver <- as.factor(substr(playstore$Android.Ver,start=1,stop=3))
 
 # Convert Reviews, Rating, Price, Installs to numeric
 playstore$Reviews <- as.numeric(playstore$Reviews)
