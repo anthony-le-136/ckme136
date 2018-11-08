@@ -1,7 +1,6 @@
 ---
 title: "Google Play Store Data Analysis"
 author: "Anthony Le"
-date: "September 28, 2018"
 output: html_document
 ---
 
@@ -11,13 +10,20 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r,echo=FALSE}
 #install.packages("tidyverse")
-#install.packages("ggplot2")
-#library(ggplot2)
+#install.packages("randomForest")
+#install.packages('caret', dependencies = TRUE)
+#install.packages('e1071')
+#install.packages('DMwR')
+library(DMwR)
+library(e1071)
+library(caret)
+library(randomForest)
 library(tidyverse)
 library(lubridate)
+set.seed(1958)
 ```
 
-## Cleaning Data
+## Data Import
 
 Import Data 
 ```{r}
@@ -32,9 +38,11 @@ summary(playstore)
 
 ```
 
-Remove nonessential columns and duplicated rows
+## Transform Data
 
-```{r}
+1. Remove columns and duplicated rows
+
+```{r, echo=FALSE}
 playstore$App <- NULL
 playstore$Current.Ver <- NULL
 playstore$Genres <- NULL
@@ -43,39 +51,41 @@ playstore <- na.omit(playstore)
 playstore <- subset(unique(playstore))
 
 ```
-App ratings should have a maximum value of 5
+2. App ratings should have a maximum value of 5
 
 ```{r, echo=FALSE}
 playstore <- subset(playstore[playstore$Rating <= 5,])
-summary(playstore)
-#str(playstore)
-#boxplot(playstore$Rating, main = "Distribution of Rating", xlab = "App Rating", col="red")
+
 ```
 
 
-Remove extra characters, convert Size to consistent format, remove apps with 0 installs
+3. Remove extra characters, convert Size to consistent format, remove apps under 1MB, and remove apps with 0 installs
 
 ```{r,echo=FALSE}
 playstore$Installs <- gsub("+", "", playstore$Installs, fixed = TRUE)
 playstore$Installs <- gsub(",", "", playstore$Installs, fixed = TRUE)
 playstore$Price <- gsub("$", "", playstore$Price, fixed = TRUE)
+playstore$Price <- gsub("0", "0.00", playstore$Price, fixed = TRUE)
 playstore <- subset(playstore[playstore$Size != "Varies with device",])
+
+playstore <- playstore[!grepl("k",playstore$Size),]
 playstore$Size <- gsub("M", "", playstore$Size)
+playstore$Size <- gsub(",", "", playstore$Size, fixed = TRUE)
 playstore$Size <- as.numeric(playstore$Size)
-playstore[,4][is.na(playstore$Size)] <- 0
+playstore <- as.vector(na.omit(playstore))
+
 
 ```
 
 
-
-Convert columns to appropriate variable types
+4. Convert columns to appropriate variable types
 
 ```{r, echo=FALSE}
 
 # Android.Ver should have numeric values only
 playstore$Android.Ver <- gsub("and up","",playstore$Android.Ver,fixed=TRUE)
 playstore$Android.Ver <- gsub("Varies with device",NA,playstore$Android.Ver)
-playstore <- na.omit(playstore)
+playstore <- as.vector(na.omit(playstore))
 playstore$Android.Ver <- substr(playstore$Android.Ver,start=1,stop=3)
 
 # Change data type of  Reviews, Rating, Price, Installs
@@ -83,21 +93,77 @@ playstore$Reviews <- as.numeric(playstore$Reviews)
 playstore$Rating <- as.numeric(playstore$Rating)
 playstore$Price <- as.numeric(playstore$Price)
 playstore$Installs <- as.numeric(playstore$Installs)
+playstore$Category <- factor(playstore$Category)
 
 # Remove NaN values in Type
 playstore$Type <- gsub(NaN,NA,playstore$Type,fixed=TRUE)
+playstore$Type <- factor(playstore$Type)
 playstore$Android.Ver <- gsub(NaN,NA,playstore$Android.Ver,fixed=TRUE)
-playstore$Android.Ver <- as.factor(playstore$Android.Ver)
+playstore$Android.Ver <- factor(playstore$Android.Ver)
+
 
 playstore <- na.omit(playstore)
-
 str(playstore)
+```
+
+
+```{r, echo=FALSE}
+hist(playstore$Rating, main = "Distribution of App Rating, Continuous", breaks = 100, xlim = c(0,5), xlab = "Rating", ylab = "Count", col="gold")
 
 ```
 
-##Exploratory Plots
+There is a clear class imbalance, as there are far more apps rated 4.0 and above
+
+## Create Ratings Intervals
+
+Split continuous rating (1.0-5.0) into 2 intervals and convert to factor
+```{r}
+playstore$Rating <- cut(as.numeric(playstore$Rating), breaks = c(1,4,5), labels = c('Mediocre','High'))
+plot(playstore$Rating, main = "Distribution of App Rating, Categorical", xlab = "Rating", ylab = "Count", col="red")
+
+playstore$Rating = factor(playstore$Rating)
+playstore <- na.omit(playstore)
+
+```
+
+
+## Training/Test Split
+
+Inital training and test split ratio will be 70/30
 
 ```{r,echo=FALSE}
-hist(playstore$Rating, main = "Distribution of App Rating", breaks = 100, xlim = c(0,5), xlab = "Rating", ylab = "Count", col="blue")
+
+#Split into training and test set
+
+ps_sampling <- createDataPartition(playstore$Rating, times = 1, p = 0.7, list = FALSE)
+
+ps_training <- playstore[ps_sampling,]
+
+ps_test <- playstore[-ps_sampling,]
+
+#Upsample minority class
+ps_training <- SMOTE(Rating ~ ., ps_training, perc.over = 200,perc.under = 150)
+training_plot <- plot(ps_training$Rating, main = 'SMOTE Oversampling of Training Set', xlab = 'Rating', ylab = 'Count')
+print(training_plot)
+
+```
+
+## Random Forest
+
+```{r}
+model1 <- randomForest(Rating ~ ., ps_training)
+predict_rf <- predict(model1, ps_test)
+plot(predict_rf, main = 'Random Forest Classification', xlab = 'Rating', ylab = 'Count',col = 'darkgreen')
+rf_confusion_matrix <- confusionMatrix(data = predict_rf, reference = ps_test$Rating, positive = 'High')
+print(rf_confusion_matrix)
+
+```
+## Naive Bayes 
+```{r}
+model2 <- naiveBayes(Rating ~ .,ps_training)
+predict_nb <- predict(model2,ps_test)
+plot(predict_nb, main = 'Naive Bayes Classification', xlab = 'Rating', ylab = 'Count',col = 'lightblue')
+nb_confusion_matrix <- confusionMatrix(data = predict_nb, reference = ps_test$Rating, positive = 'High')
+print(nb_confusion_matrix)
 
 ```
