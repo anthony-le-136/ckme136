@@ -178,7 +178,7 @@ plot(predict_rf, main = 'Random Forest Classification', xlab = 'Rating', ylab = 
 ![](google_playstore_data_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
-rf_confusion_matrix <- confusionMatrix(data = predict_rf, reference = ps_test$Rating, positive = 'High')
+rf_confusion_matrix <- confusionMatrix(data = predict_rf, reference = ps_test$Rating, positive = 'Mediocre')
 print(rf_confusion_matrix)
 ```
 
@@ -197,16 +197,16 @@ print(rf_confusion_matrix)
     ##                   Kappa : 0.035          
     ##  Mcnemar's Test P-Value : <2e-16         
     ##                                          
-    ##             Sensitivity : 0.9581         
-    ##             Specificity : 0.0684         
-    ##          Pos Pred Value : 0.7126         
-    ##          Neg Pred Value : 0.4038         
-    ##              Prevalence : 0.7068         
-    ##          Detection Rate : 0.6772         
-    ##    Detection Prevalence : 0.9503         
-    ##       Balanced Accuracy : 0.5133         
+    ##             Sensitivity : 0.06840        
+    ##             Specificity : 0.95811        
+    ##          Pos Pred Value : 0.40385        
+    ##          Neg Pred Value : 0.71256        
+    ##              Prevalence : 0.29322        
+    ##          Detection Rate : 0.02006        
+    ##    Detection Prevalence : 0.04967        
+    ##       Balanced Accuracy : 0.51326        
     ##                                          
-    ##        'Positive' Class : High           
+    ##        'Positive' Class : Mediocre       
     ## 
 
 ## Naive Bayes
@@ -220,7 +220,7 @@ plot(predict_nb, main = 'Naive Bayes Classification', xlab = 'Rating', ylab = 'C
 ![](google_playstore_data_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
-nb_confusion_matrix <- confusionMatrix(data = predict_nb, reference = ps_test$Rating, positive = 'High')
+nb_confusion_matrix <- confusionMatrix(data = predict_nb, reference = ps_test$Rating, positive = 'Mediocre')
 print(nb_confusion_matrix)
 ```
 
@@ -239,14 +239,14 @@ print(nb_confusion_matrix)
     ##                   Kappa : 0.0359          
     ##  Mcnemar's Test P-Value : <2e-16          
     ##                                           
-    ##             Sensitivity : 0.5878          
-    ##             Specificity : 0.4528          
-    ##          Pos Pred Value : 0.7214          
-    ##          Neg Pred Value : 0.3131          
-    ##              Prevalence : 0.7068          
-    ##          Detection Rate : 0.4155          
-    ##    Detection Prevalence : 0.5759          
+    ##             Sensitivity : 0.4528          
+    ##             Specificity : 0.5878          
+    ##          Pos Pred Value : 0.3131          
+    ##          Neg Pred Value : 0.7214          
+    ##              Prevalence : 0.2932          
+    ##          Detection Rate : 0.1328          
+    ##    Detection Prevalence : 0.4241          
     ##       Balanced Accuracy : 0.5203          
     ##                                           
-    ##        'Positive' Class : High            
+    ##        'Positive' Class : Mediocre        
     ##
