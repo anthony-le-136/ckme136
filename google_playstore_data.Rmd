@@ -184,7 +184,7 @@ model_lr <- train(ps_training[,-2], ps_training$Rating, method = "glm", trContro
 
 ```{r}
 rf_predict <- predict(model_rf, ps_test, type = "prob")
-rf_roc <- roc(ps_test$Rating, rf_predicted$`1`)
+rf_roc <- roc(ps_test$Rating, rf_predict$`1`)
 plot.roc(rf_roc)
 
 auc(rf_roc)
@@ -192,7 +192,7 @@ auc(rf_roc)
 
 ```{r}
 nb_predict <- predict(model_nb, ps_test, type = "prob")
-nb_roc <- roc(ps_test$Rating, nb_predicted$`1`)
+nb_roc <- roc(ps_test$Rating, nb_predict$`1`)
 plot.roc(nb_roc)
 
 auc(nb_roc)
@@ -200,7 +200,7 @@ auc(nb_roc)
 
 ```{r}
 lr_predict <- predict(model_lr, ps_test, type = "prob")
-lr_roc <- roc(ps_test$Rating, lr_predicted$`1`)
+lr_roc <- roc(ps_test$Rating, lr_predict$`1`)
 plot.roc(lr_roc)
 
 auc(lr_roc)
