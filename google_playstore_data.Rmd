@@ -10,17 +10,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r,echo=FALSE}
 #install.packages("tidyverse")
-#install.packages("randomForest")
 #install.packages('caret', dependencies = TRUE)
 #install.packages('e1071')
 #install.packages('DMwR')
+#install.packages('pROC')
 library(DMwR)
 library(e1071)
 library(caret)
-library(randomForest)
 library(tidyverse)
 library(lubridate)
-set.seed(1958)
+library(pROC)
+set.seed(1994)
 ```
 
 ## Data Import
@@ -118,7 +118,7 @@ There is a clear class imbalance, as there are far more apps rated 4.0 and above
 
 Split continuous rating (1.0-5.0) into 2 intervals and convert to factor
 ```{r}
-playstore$Rating <- cut(as.numeric(playstore$Rating), breaks = c(1,4,5), labels = c('Mediocre','High'))
+playstore$Rating <- cut(as.numeric(playstore$Rating), breaks = c(1,4,5), labels = c('0','1'))
 plot(playstore$Rating, main = "Distribution of App Rating, Categorical", xlab = "Rating", ylab = "Count", col="red")
 
 playstore$Rating = factor(playstore$Rating)
@@ -127,42 +127,81 @@ playstore <- na.omit(playstore)
 ```
 
 
-## Training/Test Split
+## Upsampling
 
-Inital training and test split ratio will be 70/30
 
 ```{r,echo=FALSE}
+#Remove levels with single data points
+playstore <- subset(playstore[-which(playstore$Android.Ver == "1.0"),])
+playstore <- subset(playstore[-which(playstore$Android.Ver == "7.1"),])
+playstore <- subset(playstore[!playstore$Content.Rating == "Adults only 18+",])
+playstore <- subset(playstore[!playstore$Content.Rating == "Unrated",])
 
-#Split into training and test set
+playstore$Android.Ver <- factor(playstore$Android.Ver)
+playstore$Content.Rating <- factor(playstore$Content.Rating)
 
-ps_sampling <- createDataPartition(playstore$Rating, times = 1, p = 0.7, list = FALSE)
-
-ps_training <- playstore[ps_sampling,]
-
-ps_test <- playstore[-ps_sampling,]
+# Training and test split
+split <- createDataPartition(playstore$Rating, times = 1,p = 0.7,list = FALSE)
+ps_training <- playstore[split,]
+ps_test <- playstore[-split,]
 
 #Upsample minority class
 ps_training <- SMOTE(Rating ~ ., ps_training, perc.over = 200,perc.under = 150)
-training_plot <- plot(ps_training$Rating, main = 'SMOTE Oversampling of Training Set', xlab = 'Rating', ylab = 'Count')
-print(training_plot)
+upsample_plot <- plot(ps_training$Rating, main = 'SMOTE Oversampling', xlab = 'Rating', ylab = 'Count')
+print(upsample_plot)
 ```
+
 
 ## Random Forest
 
 ```{r}
-model1 <- randomForest(Rating ~ ., ps_training)
-predict_rf <- predict(model1, ps_test)
-plot(predict_rf, main = 'Random Forest Classification', xlab = 'Rating', ylab = 'Count',col = 'darkgreen')
-rf_confusion_matrix <- confusionMatrix(data = predict_rf, reference = ps_test$Rating, positive = 'Mediocre')
-print(rf_confusion_matrix)
+
+model_rf <- train(ps_training[,-2],ps_training$Rating,method = "rf", trControl = trainControl(method="cv",number = 3,savePredictions = TRUE))
+
 
 ```
 ## Naive Bayes 
 ```{r}
-model2 <- naiveBayes(Rating ~ .,ps_training)
-predict_nb <- predict(model2,ps_test)
-plot(predict_nb, main = 'Naive Bayes Classification', xlab = 'Rating', ylab = 'Count',col = 'lightblue')
-nb_confusion_matrix <- confusionMatrix(data = predict_nb, reference = ps_test$Rating, positive = 'Mediocre')
-print(nb_confusion_matrix)
 
+model_nb <- train(ps_training[,-2], ps_training$Rating,method = "naive_bayes", trControl = trainControl(method="cv",number = 3,savePredictions = TRUE))
+
+
+```
+
+## Logistic Regression
+```{r}
+#ps_training_lr <- ps_training
+#ps_training_lr$Rating <- as.character(ps_training_lr$Rating)
+#ps_training_lr[ps_training_lr$Rating == 'Mediocre'] <- '0'
+#ps_training_lr[ps_training_lr$Rating == 'High'] <- '1'
+#ps_training_lr$Rating <- as.factor(ps_training_lr$Rating)
+
+model_lr <- train(ps_training[,-2], ps_training$Rating, method = "glm", trControl = trainControl(method = "cv",number = 3,savePredictions = TRUE))
+
+```
+
+## Performance Measuring
+
+```{r}
+rf_predict <- predict(model_rf, ps_test, type = "prob")
+rf_roc <- roc(ps_test$Rating, rf_predicted$`1`)
+plot.roc(rf_roc)
+
+auc(rf_roc)
+```
+
+```{r}
+nb_predict <- predict(model_nb, ps_test, type = "prob")
+nb_roc <- roc(ps_test$Rating, nb_predicted$`1`)
+plot.roc(nb_roc)
+
+auc(nb_roc)
+```
+
+```{r}
+lr_predict <- predict(model_lr, ps_test, type = "prob")
+lr_roc <- roc(ps_test$Rating, lr_predicted$`1`)
+plot.roc(lr_roc)
+
+auc(lr_roc)
 ```
