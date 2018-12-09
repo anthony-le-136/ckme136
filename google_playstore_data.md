@@ -106,12 +106,10 @@ Initial Data
 
 1.  Remove columns and duplicated rows
 
-2.  App ratings should have a maximum value of 5
+2.  Remove extra characters and convert attributes to consistent numeric
+    format
 
-3.  Remove extra characters, convert Size to consistent format, remove
-    apps under 1MB, and remove apps with 0 installs
-
-4.  Convert columns to appropriate variable types
+3.  Convert columns to appropriate variable types
 
 <!-- end list -->
 
@@ -130,7 +128,7 @@ Initial Data
     ##  - attr(*, "na.action")=Class 'omit'  Named int [1:113] 1385 1386 1387 1427 1430 1452 1457 1468 1470 2075 ...
     ##   .. ..- attr(*, "names")= chr [1:113] "2172" "2173" "2174" "2244" ...
 
-![](google_playstore_data_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 There is a clear class imbalance, as there are far more apps rated 4.0
 and above
@@ -145,16 +143,16 @@ playstore$Rating <- cut(as.numeric(playstore$Rating), breaks = c(1,4,5), labels 
 plot(playstore$Rating, main = "Distribution of App Rating, Categorical", xlab = "Rating", ylab = "Count", col="red")
 ```
 
-![](google_playstore_data_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 playstore$Rating = factor(playstore$Rating)
 playstore <- na.omit(playstore)
 ```
 
-## Upsampling
+## Oversampling
 
-![](google_playstore_data_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
     ##      [,1]
     ## [1,]  0.7
@@ -163,50 +161,96 @@ playstore <- na.omit(playstore)
 ## Random Forest
 
 ``` r
-model_rf <- train(ps_training[,-2],ps_training$Rating,method = "rf", trControl = trainControl(method="cv",number = 3,savePredictions = TRUE))
+model_rf <- train(ps_training[,-2],ps_training$Rating,method = "rf", trControl = trainControl(method="cv",number = 11,savePredictions = TRUE))
 ```
 
 ## Naive Bayes
 
 ``` r
-model_nb <- train(ps_training[,-2], ps_training$Rating,method = "naive_bayes", trControl = trainControl(method="cv",number = 3,savePredictions = TRUE))
+model_nb <- train(ps_training[,-2], ps_training$Rating,method = "naive_bayes", trControl = trainControl(method="cv",number = 11,savePredictions = TRUE))
 ```
 
 ## Logistic Regression
 
 ``` r
-#ps_training_lr <- ps_training
-#ps_training_lr$Rating <- as.character(ps_training_lr$Rating)
-#ps_training_lr[ps_training_lr$Rating == 'Mediocre'] <- '0'
-#ps_training_lr[ps_training_lr$Rating == 'High'] <- '1'
-#ps_training_lr$Rating <- as.factor(ps_training_lr$Rating)
-
-model_lr <- train(ps_training[,-2], ps_training$Rating, method = "glm", trControl = trainControl(method = "cv",number = 3,savePredictions = TRUE))
+model_lr <- train(ps_training[,-2], ps_training$Rating, method = "glm", trControl = trainControl(method = "cv",number = 11,savePredictions = TRUE))
 ```
 
-## Performance Measuring
+    ## Warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+
+## Confusion Matrices
+
+``` r
+confusionMatrix_rf <- confusionMatrix(model_rf)
+confusionMatrix_rf 
+```
+
+    ## Cross-Validated (11 fold) Confusion Matrix 
+    ## 
+    ## (entries are percentual average cell counts across resamples)
+    ##  
+    ##           Reference
+    ## Prediction    0    1
+    ##          0 38.1  2.7
+    ##          1 11.9 47.3
+    ##                             
+    ##  Accuracy (average) : 0.8538
+
+``` r
+confusionMatrix_nb <- confusionMatrix(model_nb)
+confusionMatrix_nb 
+```
+
+    ## Cross-Validated (11 fold) Confusion Matrix 
+    ## 
+    ## (entries are percentual average cell counts across resamples)
+    ##  
+    ##           Reference
+    ## Prediction    0    1
+    ##          0 29.4 10.6
+    ##          1 20.6 39.4
+    ##                             
+    ##  Accuracy (average) : 0.6881
+
+``` r
+confusionMatrix_lr <- confusionMatrix(model_lr)
+confusionMatrix_lr 
+```
+
+    ## Cross-Validated (11 fold) Confusion Matrix 
+    ## 
+    ## (entries are percentual average cell counts across resamples)
+    ##  
+    ##           Reference
+    ## Prediction    0    1
+    ##          0 29.1 10.7
+    ##          1 20.9 39.3
+    ##                             
+    ##  Accuracy (average) : 0.6841
+
+## ROC Curves and AUC
 
 ``` r
 rf_predict <- predict(model_rf, ps_test, type = "prob")
 rf_roc <- roc(ps_test$Rating, rf_predict$`1`)
-plot.roc(rf_roc)
+plot.roc(rf_roc, main = "ROC Curve - Random Forest")
 ```
 
-![](google_playstore_data_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 auc(rf_roc)
 ```
 
-    ## Area under the curve: 0.6508
+    ## Area under the curve: 0.6593
 
 ``` r
 nb_predict <- predict(model_nb, ps_test, type = "prob")
 nb_roc <- roc(ps_test$Rating, nb_predict$`1`)
-plot.roc(nb_roc)
+plot.roc(nb_roc, main = "ROC Curve - Naive Bayes")
 ```
 
-![](google_playstore_data_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 auc(nb_roc)
@@ -217,13 +261,39 @@ auc(nb_roc)
 ``` r
 lr_predict <- predict(model_lr, ps_test, type = "prob")
 lr_roc <- roc(ps_test$Rating, lr_predict$`1`)
-plot.roc(lr_roc)
+plot.roc(lr_roc, main = "ROC Curve - Logistic Regression")
 ```
 
-![](google_playstore_data_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
 auc(lr_roc)
 ```
 
     ## Area under the curve: 0.5832
+
+Based on confusion matrix and ROC/AUC metrics, Random Forest is the best
+performing algorithm out of the 3 examined.
+
+## Feature Importance
+
+``` r
+rf_importance <- varImp(model_rf)
+plot(rf_importance, main = "Attribute Importance - Random Forest")
+```
+
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+``` r
+nb_importance <- varImp(model_nb)
+plot(nb_importance, main = "Attribute Importance - Naive Bayes")
+```
+
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+``` r
+lr_importance <- varImp(model_lr)
+plot(lr_importance, top = 10, main = "Attribute Importance - Logistic Regression")
+```
+
+![](google_playstore_data_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->

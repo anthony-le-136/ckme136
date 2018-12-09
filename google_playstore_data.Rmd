@@ -51,42 +51,40 @@ playstore <- na.omit(playstore)
 playstore <- subset(unique(playstore))
 
 ```
-2. App ratings should have a maximum value of 5
-
-```{r, echo=FALSE}
-playstore <- subset(playstore[playstore$Rating <= 5,])
-
-```
 
 
-3. Remove extra characters, convert Size to consistent format, remove apps under 1MB, and remove apps with 0 installs
+2. Remove extra characters and convert attributes to consistent numeric format
 
 ```{r,echo=FALSE}
+# Single outlier in Rating
+playstore <- subset(playstore[playstore$Rating <= 5,])
+
 playstore$Installs <- gsub("+", "", playstore$Installs, fixed = TRUE)
 playstore$Installs <- gsub(",", "", playstore$Installs, fixed = TRUE)
+
 playstore$Price <- gsub("$", "", playstore$Price, fixed = TRUE)
 playstore$Price <- gsub("0", "0.00", playstore$Price, fixed = TRUE)
-playstore <- subset(playstore[playstore$Size != "Varies with device",])
 
+playstore <- subset(playstore[playstore$Size != "Varies with device",])
 playstore <- playstore[!grepl("k",playstore$Size),]
 playstore$Size <- gsub("M", "", playstore$Size)
 playstore$Size <- gsub(",", "", playstore$Size, fixed = TRUE)
 playstore$Size <- as.numeric(playstore$Size)
 playstore <- as.vector(na.omit(playstore))
 
-
-```
-
-
-4. Convert columns to appropriate variable types
-
-```{r, echo=FALSE}
-
 # Android.Ver should have numeric values only
 playstore$Android.Ver <- gsub("and up","",playstore$Android.Ver,fixed=TRUE)
 playstore$Android.Ver <- gsub("Varies with device",NA,playstore$Android.Ver)
 playstore <- as.vector(na.omit(playstore))
 playstore$Android.Ver <- substr(playstore$Android.Ver,start=1,stop=3)
+
+
+```
+
+
+3. Convert columns to appropriate variable types
+
+```{r, echo=FALSE}
 
 # Change data type of  Reviews, Rating, Price, Installs
 playstore$Reviews <- as.numeric(playstore$Reviews)
@@ -127,7 +125,7 @@ playstore <- na.omit(playstore)
 ```
 
 
-## Upsampling
+## Oversampling
 
 
 ```{r,echo=FALSE}
@@ -156,36 +154,50 @@ print(upsample_plot)
 
 ```{r}
 
-model_rf <- train(ps_training[,-2],ps_training$Rating,method = "rf", trControl = trainControl(method="cv",number = 3,savePredictions = TRUE))
-
+model_rf <- train(ps_training[,-2],ps_training$Rating,method = "rf", trControl = trainControl(method="cv",number = 11,savePredictions = TRUE))
 
 ```
 ## Naive Bayes 
 ```{r}
 
-model_nb <- train(ps_training[,-2], ps_training$Rating,method = "naive_bayes", trControl = trainControl(method="cv",number = 3,savePredictions = TRUE))
+model_nb <- train(ps_training[,-2], ps_training$Rating,method = "naive_bayes", trControl = trainControl(method="cv",number = 11,savePredictions = TRUE))
 
 
 ```
 
 ## Logistic Regression
 ```{r}
-#ps_training_lr <- ps_training
-#ps_training_lr$Rating <- as.character(ps_training_lr$Rating)
-#ps_training_lr[ps_training_lr$Rating == 'Mediocre'] <- '0'
-#ps_training_lr[ps_training_lr$Rating == 'High'] <- '1'
-#ps_training_lr$Rating <- as.factor(ps_training_lr$Rating)
 
-model_lr <- train(ps_training[,-2], ps_training$Rating, method = "glm", trControl = trainControl(method = "cv",number = 3,savePredictions = TRUE))
+model_lr <- train(ps_training[,-2], ps_training$Rating, method = "glm", trControl = trainControl(method = "cv",number = 11,savePredictions = TRUE))
 
 ```
 
-## Performance Measuring
+## Confusion Matrices
+
+```{r}
+confusionMatrix_rf <- confusionMatrix(model_rf)
+confusionMatrix_rf 
+
+```
+
+```{r}
+confusionMatrix_nb <- confusionMatrix(model_nb)
+confusionMatrix_nb 
+
+```
+
+```{r}
+confusionMatrix_lr <- confusionMatrix(model_lr)
+confusionMatrix_lr 
+
+```
+
+## ROC Curves and AUC
 
 ```{r}
 rf_predict <- predict(model_rf, ps_test, type = "prob")
 rf_roc <- roc(ps_test$Rating, rf_predict$`1`)
-plot.roc(rf_roc)
+plot.roc(rf_roc, main = "ROC Curve - Random Forest")
 
 auc(rf_roc)
 ```
@@ -193,7 +205,7 @@ auc(rf_roc)
 ```{r}
 nb_predict <- predict(model_nb, ps_test, type = "prob")
 nb_roc <- roc(ps_test$Rating, nb_predict$`1`)
-plot.roc(nb_roc)
+plot.roc(nb_roc, main = "ROC Curve - Naive Bayes")
 
 auc(nb_roc)
 ```
@@ -201,7 +213,31 @@ auc(nb_roc)
 ```{r}
 lr_predict <- predict(model_lr, ps_test, type = "prob")
 lr_roc <- roc(ps_test$Rating, lr_predict$`1`)
-plot.roc(lr_roc)
+plot.roc(lr_roc, main = "ROC Curve - Logistic Regression")
 
 auc(lr_roc)
+```
+
+Based on confusion matrix and ROC/AUC metrics, Random Forest is the best performing algorithm out of the 3 examined.
+
+## Feature Importance
+```{r}
+
+rf_importance <- varImp(model_rf)
+plot(rf_importance, main = "Attribute Importance - Random Forest")
+
+```
+
+```{r}
+
+nb_importance <- varImp(model_nb)
+plot(nb_importance, main = "Attribute Importance - Naive Bayes")
+
+```
+
+```{r}
+
+lr_importance <- varImp(model_lr)
+plot(lr_importance, top = 10, main = "Attribute Importance - Logistic Regression")
+
 ```
